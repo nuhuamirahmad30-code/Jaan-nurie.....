@@ -1,0 +1,33 @@
+name: Build APK
+on: [push, workflow_dispatch]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup www folder from your index.html
+        run: |
+          rm -rf *.zip* || true
+          mkdir -p www
+          if [ -f "index.html" ]; then cp index.html www/index.html; fi
+          if [ -f "www/index.html" ]; then echo "Game found"; wc -c www/index.html; else echo "NO GAME"; ls -la; fi
+          # anti-freeze fix
+          sed -i 's|<head>|<head><script>try{const n=()=>Promise.resolve();if(screen.orientation)screen.orientation.lock=n;Element.prototype.requestFullscreen=n;document.documentElement.requestFullscreen=n;}catch(e){}</script>|' www/index.html || true
+          ls -lh www/
+      - uses: actions/setup-node@v4
+        with: {node-version: 20}
+      - uses: actions/setup-java@v4
+        with: {java-version: '17', distribution: temurin}
+      - uses: android-actions/setup-android@v3
+      - run: npm install
+      - run: npx cap add android
+      - run: npx cap copy android
+      - name: Build APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: JaanNurie-FINAL-EXACT
+          path: android/app/build/outputs/apk/debug/app-debug.apk
